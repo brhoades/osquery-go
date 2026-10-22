@@ -271,13 +271,14 @@ func (s *ExtensionManagerServer) Start() error {
 // Run starts the extension manager and runs until osquery calls for a shutdown
 // or the osquery instance goes away.
 func (s *ExtensionManagerServer) Run() error {
-	errc := make(chan error)
-	go func() {
+	var wg sync.WaitGroup
+	errc := make(chan error, 1)
+	wg.Go(func() {
 		errc <- s.Start()
-	}()
+	})
 
 	// Watch for the osquery process going away. If so, initiate shutdown.
-	go func() {
+	wg.Go(func() {
 		for {
 			time.Sleep(s.pingInterval)
 
@@ -300,10 +301,11 @@ func (s *ExtensionManagerServer) Run() error {
 				break
 			}
 		}
-	}()
+	})
 
 	err := <-errc
 	_ = s.Shutdown(context.Background())
+	wg.Wait()
 	return err
 }
 
