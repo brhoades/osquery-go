@@ -48,6 +48,7 @@ func TestNoDeadlockOnError(t *testing.T) {
 		serverClient:               mock,
 		registry:                   registry,
 		serverClientShouldShutdown: true,
+		pingInterval:               defaultPingInterval,
 	}
 
 	log := func(ctx context.Context, typ logger.LogType, logText string) error {

@@ -273,14 +273,23 @@ func (s *ExtensionManagerServer) Start() error {
 func (s *ExtensionManagerServer) Run() error {
 	var wg sync.WaitGroup
 	errc := make(chan error, 1)
+	pingCtx, cancel := context.WithCancel(context.Background())
 	wg.Go(func() {
 		errc <- s.Start()
 	})
 
 	// Watch for the osquery process going away. If so, initiate shutdown.
 	wg.Go(func() {
+		t := time.NewTicker(s.pingInterval)
+		defer t.Stop()
+
 		for {
-			time.Sleep(s.pingInterval)
+			select {
+			case <-t.C:
+			case <-pingCtx.Done():
+				errc <- pingCtx.Err()
+				return
+			}
 
 			s.mutex.Lock()
 			serverClient := s.serverClient
@@ -304,6 +313,7 @@ func (s *ExtensionManagerServer) Run() error {
 	})
 
 	err := <-errc
+	cancel()
 	_ = s.Shutdown(context.Background())
 	wg.Wait()
 	return err
